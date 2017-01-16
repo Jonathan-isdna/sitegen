@@ -7,15 +7,26 @@ import (
   "github.com/Jonathan-isdna/sitegen/fileio"
   "github.com/Jonathan-isdna/sitegen/gf"
   "github.com/Jonathan-isdna/sitegen/filesearch"
+  "github.com/Jonathan-isdna/sitegen/datetime"
   "path/filepath"
   // "fmt"
 )
 
-type dPost struct {
-  Title string
-  Date string
+type DPage struct {
+  Title, Url, HtmlFile string
+}
+
+type DContent struct {
+  postList []DPost
+}
+
+type DPost struct {
+  DPage
+  Date datetime.Date
   Image string
   Post template.HTML
+  MDFile string
+  ID int
 }
 
 // Takes a string template input and data and return html string back
@@ -35,55 +46,23 @@ func renderTemplate(tpl string, data interface{}) string {
   return rendered.String()
 }
 
-func parseMarkdown(lines []string) (Title string, Date string, Image string, Post template.HTML) {
-  if len(lines) < 4 {
-    gf.Generate("Markdown error. Last file can't be parsed")
-  }
-  Title = lines[0]
-  Date = lines[1]
-  Image = lines[2]
-  postText := ""
+func ParsePost(postMd string) (pData DPost) {
+  var postText string
+  lines := fileio.FileReadLines(postMd)
+  if len(lines) < 4 { gf.Generate("Markdown error. Last file can't be parsed") }
+
+  pData.Title = lines[0]
+  pData.Date = datetime.ParseDate(lines[1])
+  pData.Image = lines[2]
+  pData.MDFile = postMd
+  pData.Url = "blog/" + postMd[:len(postMd)-3]
+  pData.HtmlFile = "bin/" + pData.Url + "/index.html"
   for i := 3; i < len(lines); i++ { postText += lines[i] + "\r\n" }
-  Post = template.HTML(blackfriday.MarkdownBasic([]byte(postText)))
-  return Title, Date, Image, Post
+  pData.Post = template.HTML(blackfriday.MarkdownBasic([]byte(postText)))
+  return pData
 }
 
-// func Post(postFile string) {
-//   var data dPost
-//   if postFile[len(postFile)-3:] != ".md" {
-//     gf.Generate("\nError processing markdown files.\nAre they named correctly?")
-//   }
-//   postName := postFile[:len(postFile)-3]
-//
-//   postMdLines := fileio.FileReadLines(postFile)
-//   data.Title, data.Date, data.Image, data.Post = parseMarkdown(postMdLines)
-//
-//   postTemplate := fileio.FileRead("templates/post.html")
-//   rendered := renderTemplate(postTemplate, data)
-//   filename := "bin/blog/" + postName + "/index.html"
-//   fileio.FileWrite(filename, rendered)
-// }
-
-// var indexPage bytes.Buffer
-// err := templates.ExecuteTemplate(&indexPage, "index.html", nil)
-// gf.Check(err)
-// fileio.FileWrite("bin/index.html", indexPage.String())
-
-func Post(t *template.Template, postFile string) {
-
-  var data dPost
-  if postFile[len(postFile)-3:] != ".md" {
-    gf.Generate("\nError processing markdown files.\nAre they named correctly?")
-  }
-  postName := postFile[:len(postFile)-3]
-  postMdLines := fileio.FileReadLines(postFile)
-  data.Title, data.Date, data.Image, data.Post = parseMarkdown(postMdLines)
-
-  filename := "bin/blog/" + postName + "/index.html"
-  fileio.FileWrite(filename, getHtml(t, "post", data))
-}
-
-func Content(t *template.Template, file string) {
+func Content(t *template.Template, file string, data interface{}) {
   _, tpl := filepath.Split(file)
   filename := file[8:len(file)]
   var compiledFilename string
@@ -92,7 +71,7 @@ func Content(t *template.Template, file string) {
   } else {
     compiledFilename = "bin/index.html"
   }
-  fileio.FileWrite(compiledFilename, getHtml(t, tpl, nil))
+  fileio.FileWrite(compiledFilename, GetHtml(t, tpl, data))
 }
 
 func Init() *template.Template {
@@ -105,7 +84,7 @@ func Init() *template.Template {
   return t
 }
 
-func getHtml(t *template.Template, tpl string, data interface{}) string {
+func GetHtml(t *template.Template, tpl string, data interface{}) string {
   var html bytes.Buffer
   err := t.ExecuteTemplate(&html, tpl, data)
   gf.Check(err)

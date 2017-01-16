@@ -7,7 +7,8 @@ import (
   "github.com/Jonathan-isdna/sitegen/render"
   "github.com/Jonathan-isdna/sitegen/filesearch"
   "github.com/Jonathan-isdna/sitegen/fileio"
-  // "github.com/Jonathan-isdna/sitegen/gf"
+  "github.com/Jonathan-isdna/sitegen/gf"
+  "github.com/Jonathan-isdna/sitegen/sorter"
   "time"
   "fmt"
   // "os"
@@ -18,31 +19,46 @@ func main() {
   tBefore := time.Now()
 
 
-  // fmt.Println("----- Sitegen -----")
+  fmt.Println("----- Sitegen -----")
   fileio.ResetBinFolder()
-  // // Get list of .md posts
-  // postList := filesearch.Search("posts")
   t := render.Init()
 
+  // Get List of posts and a list of content
+  postFileList := filesearch.Search("posts")
+  contentList := filesearch.Search("content")
+
+  // String Len for printing current post stuff?
+  slen := 10
+
   // Render Posts
-  postList := filesearch.Search("posts")
-  for _, post := range postList {
-    fmt.Printf("Rendering: %s\n", post)
-    render.Post(t, post)
+  var data render.DPost
+  var postList []render.DPost
+  for index, post := range postFileList {
+    if len(post) < slen { fmt.Printf("\rPost: %s", post) } else { fmt.Printf("\rPost: %s", post[:slen]) }
+
+    if post[len(post)-3:] != ".md" { gf.Generate("\nError processing markdown files.\nAre they named correctly?") }
+    data = render.ParsePost(post)
+    data.ID = index
+    postList = append(postList, data)
+    fileio.FileWrite(data.HtmlFile, render.GetHtml(t, "post", data))
   }
+  // Sort postList
+  sorter.Sort(postList)
+  // for _, post := range postList {
+  //   fmt.Printf("Post %d | %d\n", post.ID, post.Date.Int())
+  // }
 
   // Render Content folder
-  contentList := filesearch.Search("content")
   for _, file := range contentList {
-    fmt.Printf("Rendering: %s\n", file)
-    render.Content(t, file)
+    if len(file) < slen { fmt.Printf("\rCont: %s", file) } else { fmt.Printf("\rContent: %s", file[:slen]) }
+    // fmt.Printf("\rContent: %s", file)
+    render.Content(t, file, postList)
   }
 
-  // Copy static to bin...
-
+  // Copy static to bin
 
   tAfter := time.Now()
-  fmt.Printf("Finished in %v.\n", tAfter.Sub(tBefore))
+  fmt.Printf("\r----- Finished in %v. -----\n", tAfter.Sub(tBefore))
 
   // Serve the site after generating it.
   if len(os.Args) > 1 {

@@ -46,4 +46,14 @@ func ensureDir(dirPath string) {
   }
 }
 
-func ResetBinFolder() { gf.NonFatal(os.RemoveAll("bin")) }
+func ResetBinFolder() {
+  files, err := ioutil.ReadDir("bin")
+  gf.Check(err)
+  for _, file := range files {
+    if file.Name() != "static" {
+      // fmt.Println(file.Name())
+      gf.NonFatal(os.RemoveAll(file.Name()))
+    }
+  }
+  // gf.NonFatal(os.RemoveAll("bin"))
+}

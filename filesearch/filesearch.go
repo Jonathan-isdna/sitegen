@@ -7,7 +7,6 @@ import (
 )
 
 func visit(path string, f os.FileInfo, err error) error {
-  // fmt.Printf("Visited: %s\n", path)
   if f.IsDir() {
     return nil
   } else {
@@ -21,7 +20,7 @@ func Search(startPath string) []string {
   pathList := make([]string, 0)
   err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
     if !f.IsDir() {
-      pathList = append(pathList, path)
+      pathList = append(pathList, filepath.ToSlash(path))
     }
     return err
   })
